@@ -1,0 +1,56 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Filter data to use only GC and FN
+productive_GC_FN = productive_GC_FN.copy()
+productive_GC_FN["celltype_short"] = productive_GC_FN["celltype"].replace({"Follicular Naive": "FN", "GC": "GC"})
+productive_GC_FN["treat_cell"] = productive_GC_FN["treatment"].astype(str) + "_" + productive_GC_FN["celltype_short"].astype(str)
+
+# add a dummy hue level to create visual GAP between Saline and Artesunate within each timepoint
+HUE_ORDER = ['Saline_FN', 'Saline_GC', 'GAP', 'Artesunate_FN', 'Artesunate_GC', 'Naive_FN', 'Naive_GC']
+
+plt.figure(figsize=(9, 5))
+plt.box(False)
+# Add x-axis and y-axis lines
+plt.axhline(0, color='black', linewidth=1)  # Adds x-axis at y=0
+plt.axvline(-0.5, color='black', linewidth=1)
+
+# Violin plot with different fill and border colors for Saline and Artesunate
+for isotype, color in zip(['IGHM', 'IGHG2B', 'IGHG3','IGHG2C', 'IGHG1', 'IGHA'], ['red', '#ff13f0', '#00fff0', '#0000ff','#66f1c2', '#00f0ff']):
+    df_per_isotype = productive_GC_FN[productive_GC_FN['c_call_B_VDJ'] == isotype]
+    sns.stripplot(
+        data=df_per_isotype,
+        x='sample_id', y='mu_count',
+        hue='treat_cell',
+        order=['D10', 'D14', 'D21', 'D28', 'D35', 'D42'],
+        hue_order=HUE_ORDER,
+        palette={k: (color if k != 'GAP' else '#FFFFFF') for k in HUE_ORDER},
+        jitter=0.3, linewidth=0.5, alpha=0.6,
+        marker='o', size=4, edgecolor='#373737', dodge=True
+    )
+
+ax1 = sns.violinplot(
+    x='sample_id', y='mu_count',
+    data=productive_GC_FN,
+    hue='treat_cell',
+    order=['D10', 'D14', 'D21', 'D28', 'D35', 'D42'],
+    hue_order=HUE_ORDER,
+    linewidth=1.5, dodge=True,
+    palette={
+        'Saline_FN': '#E3E5E5', 'Saline_GC': '#E3E5E5',
+        'GAP': '#FFFFFF',
+        'Artesunate_FN': '#8E8E8E', 'Artesunate_GC': '#8E8E8E',
+        'Naive_FN': '#8E8E8E', 'Naive_GC': '#8E8E8E'
+    }
+)
+
+# --- remove legend completely ---
+leg = ax1.get_legend()
+if leg is not None:
+    leg.remove()
+
+plt.tight_layout()
+plt.ylim(-1, 50)
+plt.tick_params(bottom=False)
+plt.savefig()
+plt.show()
