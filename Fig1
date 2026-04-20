@@ -1,0 +1,88 @@
+# Fig1 - download experiment1.rds from GEO with code GSE286215
+
+library(Seurat)
+library(tidyverse)
+library(ggplot2)
+
+# Open experiment1.rds
+
+experiment1 <- readRDS(file = "/..../experiment1.RDS")
+
+# Cell annotations found under annotation1' metadata
+
+# Fig1b
+
+DimPlot(experiment1, group.by = "annotation1", split.by = "orig.ident", order = F, pt.size = 0.1, label = F, cols = c('#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#f6999a', '#9172b3', '#cccccc'))& coord_fixed() &NoLegend() &NoAxes()
+
+# Fig1c
+
+# UMAP of entire data
+DimPlot(experiment1, group.by = "annotation1", order = F, pt.size = 0.1, label = F, raster = F, cols = c('#a6cee2', '#BCE0BF', '#F15E6D', '#f57f20', '#feec9f', '#36a047', '#fdbf6c', '#a6cee2', '#f6999a', '#9273b3' ))+ coord_fixed() +NoAxes() +NoLegend()
+
+# Split by time for naive and bystanders
+DimPlot(experiment1, group.by = "annotation1", split.by = "orig.ident", order = F, pt.size = 0.1, label = F, cols = c('#a6cee2', '#BCE0BF', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#a6cee2', '#cccccc', '#cccccc', '#cccccc'))& coord_fixed() &NoLegend() &NoAxes()
+
+# Fig1d
+
+# AddModule gene score for cell cycle and unswitched (Ighd,Ighm)
+# CellCycle gene found at 
+a <- read.table(file = "/.../cell_cycle_genes.txt")
+
+experiment1 <- AddModuleScore(experiment1,
+                         features = a,
+                         name="CellCycle")
+FeaturePlot(experiment1, c("CellCycle1"), order = F, min.cutoff = 0)&NoLegend() &NoAxes()& coord_fixed()& scale_colour_viridis_c(option='magma', direction=-1, begin=0.1, end=0.95)
+
+# Unswitched signature
+
+unswitched <- c("Ighd",
+           "Ighm")
+
+experiment1 <- AddModuleScore(experiment1,
+                              features = unswitched,
+                              name="unswitched")
+FeaturePlot(experiment1, c("unswitched1"), order = F, min.cutoff = 0)&NoLegend() &NoAxes()& coord_fixed()& scale_colour_viridis_c(option='magma', direction=-1, begin=0.1, end=0.95)
+
+# Fig1e
+
+# FindMarkers of day 4 bystanders versus day 0 naive follicular B cells
+
+
+experiment1$celltype_time <- paste(experiment1$annotation1, seurat$orig.ident, sep = "_")
+Idents(experiment1) <- "celltype_time"
+markers <- FindMarkers(
+  experiment1,
+  ident.1 = "Bystanders_D4",
+  ident.2 = c("Naive Follicular_D0", "Dying?_D0"), min.pct = 0.25
+)
+
+write.csv(markers, file = "/....../bystanders_markers.csv")
+
+# Make volcano plot
+
+library(ggplot2)
+library(Seurat)
+library(cowplot)
+library(dplyr)
+library(ggrepel)
+
+genes_to_label <- c("Ly6c2", "Ly6a", "Socs1", "Irgm1", "Irf1", "Stat1", "Ifi47", "Serpina3g", "Gbp2", "Tgtp2", "Zbp1", "Ifi27l2a", "Gbp7", "Tgtp1")
+
+p <- ggplot(data=markers, aes(x=avg_log2FC, y=-log10(p_val_adj))) + geom_point() + theme_bw()
+p
+p2 <- p + geom_vline(xintercept=c(-0.5, 0.5), col="red", linetype = "dashed") +
+  geom_hline(yintercept=-log10(0.05), col="red", linetype = "dashed") + geom_vline(xintercept=c(0), col="red") + scale_y_continuous(limits=c(0, 300)) +
+  scale_x_continuous(limits=c(-2, 6.5)) + scale_color_manual(values=c("blue", "black", "red"))
+p3 <- p2 +  geom_text_repel(
+  data = subset(markers, X %in% genes_to_label),
+  aes(label = X),
+  size = 4,
+  max.overlaps = 20
+)
+p3
+
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
