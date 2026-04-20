@@ -1,0 +1,33 @@
+# Fig4 - download experiment2.rds from GEO with code GSE286215
+
+library(Seurat)
+library(tidyverse)
+library(ggplot2)
+
+# Fig4b
+
+# Open experiment2.rds
+experiment2 <- readRDS(file = "/..../experiment2.RDS")
+
+DimPlot(experiment2, group.by = "celltype", order = F, pt.size = 0.1, label = F, cols = c('#f15e6d', '#38a048', '#fdeb9e', '#bce0bf', '#a8cee0', '#a8cee0', '#f6999a', '#2279b4', '#fdbf6b', '#f57f20', '#9172b3', '#ccbf72'))+ coord_fixed() +NoAxes() 
+
+# Fig4c open exp2_GC_Bcells.rds from GEO with code GSE286215
+gc <- readRDS(file = "/..../exp2_GC_Bcells.RDS")
+
+DimPlot(gc, order = F, pt.size = 0.1, label = F, group.by = "annotation", cols = c("#f57f20", "#f15e6d", "#38a048", "#fdeb9e",  "#9172b3"))+ coord_fixed() +NoAxes() #+NoLegend()
+
+# Fig4d
+
+# Subset out DZ and look at Aicda expression overtime
+DZ <- subset(gc, cells = largeGC_v2@meta.data %>% filter(annotation %in% c("DZp", "DZd")) %>% rownames())
+DZ <- subset(gc, cells = largeGC_v2@meta.data %>% filter(treatment %in% c("Saline", "Artesunate")) %>% rownames())
+
+VlnPlot(DZ, "Aicda", group.by = 'orig.ident', split.by = 'treatment')+
+  stat_summary(fun.y = median, geom='point', size = 25, colour = "black", shape = 95)
+
+
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
