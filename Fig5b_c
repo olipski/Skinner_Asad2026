@@ -1,0 +1,160 @@
+# Fig 5b
+# creating a dictionary with one specific color per group:
+my_pal = {"IgM": "#e15759","IgA": "#b8dbe0", "IgG": "#4e79a7", "IgD": "#cc0000"}
+#plotting the umap
+sc.pl.umap(adata_2[(adata_2.obs['has_contig'] != 'FALSE') & (adata_2.obs['isotype'] != 'No_contig')],
+           color = ['isotype'], 
+           palette=my_pal, size=300, alpha=0.9, show=False)
+
+plt.savefig()
+plt.show()
+
+# Fig 5c
+import scanpy as sc
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib import cm
+import numpy as np
+from scipy import sparse
+
+# -----------------------------
+# SETTINGS
+# -----------------------------
+days = ['D10', 'D14', 'D21', 'D28', 'D35', 'D42']
+day_titles = ['Day 10', 'Day 14', 'Day 21', 'Day 28', 'Day 35', 'Day 42']
+
+treatments = ['Saline', 'Artesunate']
+row_labels = {
+    'Saline': 'PcAS',
+    'Artesunate': 'PcAS+drug'
+}
+
+# output file
+out_file = '/..../ASC_recluster_Prg2_all_panels.pdf'
+
+# dot size
+point_size = 35
+
+# -----------------------------
+# COLORMAP
+# -----------------------------
+magma_cmap = cm.get_cmap('magma')
+new_cmap_reversed = LinearSegmentedColormap.from_list(
+    'magma_reversed_subset',
+    magma_cmap(np.linspace(0.1, 0.95, 256))[::-1]
+)
+
+# -----------------------------
+# PREPARE PLOTTING COLUMN
+# This makes non-contig cells grey by setting them to NaN
+# -----------------------------
+adata_plot = adata_2.copy()
+plot_col = f'{color_key}_plot'
+
+if color_key in adata_plot.var_names:
+    # gene expression from adata.X
+    vals = adata_plot[:, color_key].X
+    if sparse.issparse(vals):
+        vals = vals.toarray().ravel()
+    else:
+        vals = np.asarray(vals).ravel()
+else:
+    # obs column
+    vals = adata_plot.obs[color_key].astype(float).values
+
+# keep values only for cells with contig, everything else becomes NaN and appears grey
+has_contig_mask = adata_plot.obs['has_contig'].astype(str) != 'FALSE'
+adata_plot.obs[plot_col] = np.where(has_contig_mask, vals, np.nan)
+
+# -----------------------------
+# GLOBAL COLOR SCALE
+# keeps all panels comparable
+# -----------------------------
+global_mask = (
+    adata_plot.obs['treatment'].isin(treatments) &
+    adata_plot.obs['sample_id'].isin(days)
+)
+
+all_vals = adata_plot.obs.loc[global_mask, plot_col].astype(float).values
+all_vals = all_vals[~np.isnan(all_vals)]
+
+vmin = 0
+vmax = np.percentile(all_vals, 99) if len(all_vals) > 0 else 1
+
+# -----------------------------
+# FIGURE
+# -----------------------------
+fig, axes = plt.subplots(
+    nrows=2,
+    ncols=6,
+    figsize=(18, 6),
+    constrained_layout=True
+)
+
+for r, treatment in enumerate(treatments):
+    for c, day in enumerate(days):
+        ax = axes[r, c]
+
+        subset = adata_plot[
+            (adata_plot.obs['treatment'] == treatment) &
+            (adata_plot.obs['sample_id'] == day)
+        ].copy()
+
+        if subset.n_obs == 0:
+            ax.axis('off')
+            continue
+
+        sc.pl.umap(
+            subset,
+            color=plot_col,
+            cmap=new_cmap_reversed,
+            ax=ax,
+            show=False,
+            size=point_size,
+            vmin=vmin,
+            vmax=vmax,
+            na_color='lightgrey',
+            frameon=False,
+            colorbar_loc=None,
+            title=''
+        )
+
+        # clean axes
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+
+        # column titles
+        if r == 0:
+            ax.set_title(day_titles[c], fontsize=16, pad=10)
+
+        # row labels
+        if c == 0:
+            ax.text(
+                -0.28, 0.5, row_labels.get(treatment, treatment),
+                transform=ax.transAxes,
+                fontsize=16,
+                fontstyle='italic',
+                ha='right',
+                va='center'
+            )
+
+# -----------------------------
+# ONE SHARED COLORBAR
+# -----------------------------
+norm = Normalize(vmin=vmin, vmax=vmax)
+sm = cm.ScalarMappable(norm=norm, cmap=new_cmap_reversed)
+sm.set_array([])
+
+cbar = fig.colorbar(
+    sm,
+    ax=axes,
+    fraction=0.025,
+    pad=0.03
+)
+cbar.set_label(color_key, fontsize=12)
+
+# save
+plt.savefig(out_file, dpi=300, bbox_inches='tight')
+plt.show()
