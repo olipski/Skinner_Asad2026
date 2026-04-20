@@ -1,0 +1,104 @@
+# Fig2 - download experiment1.rds from GEO with code GSE286215
+
+library(Seurat)
+library(tidyverse)
+library(ggplot2)
+
+# Open experiment1.rds
+
+experiment1 <- readRDS(file = "/..../experiment1.RDS")
+
+# Cell annotations found under annotation1' metadata
+
+# Fig2a
+
+# UMAP of entire data
+DimPlot(experiment1, group.by = "annotation1", order = F, pt.size = 0.1, label = F, cols = c('#cccccc', '#cccccc', '#e02228', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#f6999a', '#cccccc', '#cccccc'))& coord_fixed() &NoLegend() &NoAxes()
+
+# Split by time point
+DimPlot(experiment1, group.by = "annotation1", split.by = "orig.ident", order = F, pt.size = 0.1, label = F, cols = c('#cccccc', '#cccccc', '#e02228', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc'
+
+# Plot gene expression of Myc, Nfkbid, Cd83, Cd69 and Jun                                                                                                                      
+FeaturePlot(experiment1, "gene", order = F)&NoLegend() &NoAxes()& coord_fixed()& scale_colour_viridis_c(option='magma', direction=-1, begin=0.1, end=0.95)
+                                                                                                                      
+                                                                                                                      
+# Fig2b
+# Add CSR gene signature
+                                                                                                                      
+features = c('Aicda', 'Ung', 'Apex1', 'Apex2', 'Xrcc5', 'Xrcc6', 'Pold2', 'Pole3', 'Ncl', 'Nme2', 'Ddx21', 'Npm1', 'Serbp1', 'Mir155hg', 'Hsp90ab1', 'Myc', 'Foxo1', 'Batf', 'Hivep3', 'Bhlhe40', 'Irf4')
+                                                                                                                      
+experiment1 <- AddModuleScore(experiment1, features = features,name="CSRsignature")
+
+FeaturePlot(experiment1, c("CSRsignature1"), order = F, min.cutoff = 0)&NoLegend() &NoAxes()& coord_fixed()& scale_colour_viridis_c(option='magma', direction=-1, begin=0.1, end=0.95)
+                                                                                                                      
+                                                                                                                      
+# Zoom in on activated to GC B cells
+
+zoom_act_gc <- subset(small_bcells, UMAP_2 > 1)
+zoom_act_gc <- subset(zoom_act_gc, UMAP_2 < 12)
+zoom_act_gc <- subset(zoom_act_gc, UMAP_1 > -6)
+zoom_act_gc <- subset(zoom_act_gc, UMAP_1 < 5)
+
+DimPlot(zoom_act_gc, group.by = "annotation1", order = F, pt.size = 0.1, label = F, cols = c('#cccccc', '#cccccc', '#e02228', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#cccccc', '#f6999a', '#cccccc', '#cccccc'))& coord_fixed() &NoLegend() &NoAxes()
+
+# Pseudotime
+
+# Processed data avaialble from GEO with code GSE286215
+
+library(Seurat)
+library(tidyverse)
+## import data
+actgc <- readRDS('/....../act_gc_bgplvm.RDS')
+dimred <- read.csv('/..../act_gc_bgplvm_1D_normalised.csv', row.names = 1)
+dimred$X0 <- dimred$X0 * -1
+dimred$X0 <- dimred$X0 - min(dimred$X0)
+dimred$X0 <- dimred$X0 / max(dimred$X0)
+## add trajectory
+actgc$trajectory <- dimred$X0
+## plot
+FeaturePlot(actgc, features = 'trajectory', reduction = 'bgplvm_umap', order=T, pt.size=1) +
+  coord_equal() + theme(axis.text = element_blank(), axis.ticks = element_blank()) +
+  scale_colour_viridis_c(option = 'magma', direction=-1, begin=0.1, end=0.95) +NoAxes() +coord_fixed()
+
+# Plotting gene expression along pseudotime
+
+library(ggplot2)
+library(dplyr)
+
+# Assuming you have your pseudotime and gene expression data
+# Extract pseudotime
+pseudotime_data <- actgc$trajectory
+
+# Extract gene expression for your genes of interest
+genes_of_interest <- c('Myc')
+gene_data <- actgc@assays$RNA@data[genes_of_interest, ]
+
+scale_values <- function(x){(x-min(x))/(max(x)-min(x))}
+
+# Combine into a data frame
+df <- data.frame(
+  
+  pseudotime = pseudotime_data,
+  Myc = scale_values(gene_data['Myc', ]),
+  Cell_Cycle = scale_values(actgc@meta.data$CellCycle1),
+  CSR = scale_values(actgc@meta.data$CD_Features1
+  ))
+
+# Reshape the data for plotting
+df_long <- df %>%
+  pivot_longer(cols = -pseudotime, names_to = "gene", values_to = "expression")
+
+# Non-linear regression
+ggplot(df_long, aes(x = pseudotime, y = expression, color = gene)) +
+  geom_smooth(method = "gam", formula = y ~ s(x)) + 
+  labs(title = "Gene Expression along Pseudotime",
+       x = "Pseudotime",
+       y = "Gene Expression") +
+  theme_classic() +
+  theme(legend.title = element_blank())
+
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
