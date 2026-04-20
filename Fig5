@@ -1,0 +1,21 @@
+# Fig5
+
+library(Seurat)
+library(tidyverse)
+library(ggplot2)
+
+# Fig5a open exp2_ASCs.rds from GEO with code GSE286215
+
+# Open exp2_ASCs.rds
+ascs <- readRDS(file = "/..../exp2_ASCs.rds")
+
+DimPlot(pc, order = F, pt.size = 0.1, label = F, cols = c('#c0e8c6', '#d282c5', '#aca9d1', '#ff0000', '#f394c4', '#a3c978', '#ffda84', '#a6761d')+ coord_fixed() +NoAxes()
+        
+# Fig5b plot Prg2 gene expression
+FeaturePlot(experiment1, "Prg2", order = F)&NoLegend() &NoAxes()& coord_fixed()& scale_colour_viridis_c(option='magma', direction=-1, begin=0.1, end=0.95)
+
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~
