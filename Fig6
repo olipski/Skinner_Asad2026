@@ -1,0 +1,795 @@
+# Fig6
+
+# Fig6a open integrated_experiments.RDS from GEO with code GSE286215
+integrated_experiments.RDS <- readRDS(file = "/..../integrated_experiments.RDS")
+
+# Label precursor B cells
+integrated_experiments.RDS@meta.data <- integrated_experiments.RDS@meta.data %>%
+  mutate(annotations = str_replace_all(seurat_clusters, c("\\b9\\b"="Pre-B cell","\\b20\\b"="Pro-B cell","\\b21\\b"="Cycling Pro-B cell", "\\b1\\b"="Immature", "\\b2\\b"="Immature", "\\b12\\b"="Immature", "\\b17\\b"="Immature", "\\b0\\b"="blank", "\\b3\\b"="blank", "\\b4\\b"="blank", "\\b5\\b"="blank", "\\b6\\b"="blank", "\\b7\\b"="blank", "\\b8\\b"="blank", "\\b9\\b"="blank", "\\b10\\b"="blank", "\\b11\\b"="blank", "\\b13\\b"="blank", "\\b14\\b"="blank", "\\b15\\b"="blank", "\\b16\\b"="blank", "\\b18\\b"="blank", "\\b22\\b"="blank", "\\b23\\b"="blank", "\\b25\\b"="blank", "\\b4\\b"="blank" )))
+
+# UMAP of integrated B cell dataset of experiemnt 1 and experiment 2 showing just precursor B cells
+DimPlot(integrated_experiments.RDS, reduction = "scvi_wobatch", order = F, pt.size = 0.1, label = F, group.by = 'annotations', cols = c('Pro-B cell' = '#253494', 'Cycling Pro-B cell' = '#2c7fb8', 'Pre-B cell' = '#41b6c4', 'Immature' = '#a1dab4', 'blank' = 'grey'))+ coord_fixed() +NoAxes()+ NoLegend()
+
+# Timecourse just PcAS
+PcAS_integrated <- subset(integrated_experiments.RDS, cells = integrated_experiments.RDS@meta.data %>% filter(treatment %in% c("Saline")) %>% rownames())
+DimPlot(PcAS_integrated, reduction = "scvi_wobatch", order = F, pt.size = 0.1, label = F, group.by = 'annotations', cols = c('Pro-B cell' = '#253494', 'Cycling Pro-B cell' = '#2c7fb8', 'Pre-B cell' = '#41b6c4', 'Immature' = '#a1dab4', 'blank' = 'grey'))+ coord_fixed() +NoAxes()+ NoLegend()
+
+# Timecourse just PcAS+drug
+PcASdrug_integrated <- subset(integrated_experiments.RDS, cells = integrated_experiments.RDS@meta.data %>% filter(treatment %in% c("Artesunate")) %>% rownames())
+DimPlot(PcASdrug_integrated, reduction = "scvi_wobatch", order = F, pt.size = 0.1, label = F, group.by = 'annotations', cols = c('Pro-B cell' = '#253494', 'Cycling Pro-B cell' = '#2c7fb8', 'Pre-B cell' = '#41b6c4', 'Immature' = '#a1dab4', 'blank' = 'grey'))+ coord_fixed() +NoAxes()+ NoLegend()
+
+# Fig6c
+  
+# RCTD in day 30 slide-seqv2 data
+
+setwd('path_name')
+library(Seurat)
+library(cowplot)
+library(tidyverse)
+library(spacexr)
+
+# T cells from GSE244806
+ref <- readRDS('/...../GSE244806.rds')
+# Naive spleen stromal cells from GSE171124
+stromal <- readRDS("/...../GSE171124.rds")
+# B cells from day 14-28, PcAS only form experiment2.rds
+bcells <- readRDS("/...../bcellD14_28_saline.rds")
+# Precursor B cells from integrated_experiments.RDS
+precursors <- readRDS("/...../precursorBcells.rds")
+# T cells from GSE233713
+polyc <- readRDS("/...../GSE233713.rds")
+
+ref_h5_loc <- 'reference_dataset.h5ad'
+
+
+## check idents in day30 polyclonal
+table(polyc$cell_type2)
+
+polyc <- SetIdent(polyc, value = polyc$cell_type2)
+polyc <- RenameIdents(
+  polyc,
+  'GcTfh' = 'GC-Tfh',
+  'Naive' = 'CD4+ Naive'
+)
+
+## remove existing T cell idents
+polyc <- subset(
+  polyc,
+  idents = c('iNKT', 'Cycling'),
+  invert = T
+)
+
+## check revised idents
+table(polyc$cell_type2)
+
+## check idents in day0 stromal
+table(stromal@active.ident)
+
+## rename idents in reference
+stromal <- SetIdent(stromal, value = stromal@active.ident)
+
+stromal <- RenameIdents(
+  stromal,
+  'BRC 1' = 'FDC',
+  'BRC 2' = 'TBRC',
+  'RP FB 1' = 'RP FB',
+  'RP FB 2' = 'RP FB',
+  'RP FB 3' = 'RP FB',
+  'Cxcl9 TRC' = 'TRC',
+  'Thy1 TRC' = 'TRC',
+  'Lum Ly6C+' = 'ARC',
+  'Lum Ly6C-' = 'ARC',
+  'RP Mural 1' = 'Pericyte',
+  'RP Mural 2' = 'Pericyte',
+  'WP Mural' = 'Glial'
+)
+
+## check idents
+table(stromal@active.ident)
+
+
+
+
+## check idents in day30 polyclonal
+table(ref$cell_type)
+
+## rename idents in reference
+ref <- SetIdent(ref, value = ref$cell_type)
+ref <- RenameIdents(
+  ref,
+  'CD8+ T effector' = 'CD8+ T',
+  'NK cell' = 'NK'
+)
+
+## remove existing B cell idents
+#ref <- subset(
+#ref,
+#idents = c("B ASC", "B MZ", 'B B1', 'CD4+ iNKT', 'CD4+ Treg', 'CD4+ T naive', 'FDC', 'FRC', 'RP FB', 'ARC', 'CD4+ iNKT', 'CD4+ bystander', 'CD4+ proliferating', 'CD4+ Tcmp', 'CD4+ Tfh', 'CD4+ Th1', 'CD4+ Treg', 'CD8+ T'),
+#invert = T
+#)
+
+ref <- subset(ref, cells = ref@meta.data %>% filter(cell_type %in% c('CD8+ T effector', 'cDC1', 'cDC2', 'Erythrocyte', 'Granulocyte', 'CD4+ T naive', 'Macrophage', 'Monocyte', 'NK cell', 'pDC')) %>% rownames())
+
+
+## check idents
+table(ref@active.ident)
+
+## check idents in new B cell dataset
+table(bcells$celltype)
+
+## rename idents in reference
+bcells <- SetIdent(bcells, value = bcells$celltype)
+bcells <- RenameIdents(
+  bcells,
+  'Atypical' = 'B atypical',
+  'B1' = 'B B1',
+  'Follicular Naive' = 'B naive',
+  'GC' = 'B GC',
+  'Immature/Transitional' = 'B immature',
+  'Memory' = 'B memory',
+  'MZ' = "B MZ",
+  'PB' = 'B ASC'
+)
+
+## remove existing B cell idents
+bcells <- subset(
+  bcells,
+  idents = c('Bystander', 'Activated'),
+  invert = T
+)
+
+## check idents in new GC B cell dataset
+table(bcells$celltype)
+
+## check idents in new B cell dataset
+table(precursors$annotations)
+
+## rename idents in reference
+precursors <- SetIdent(precursors, value = precursors$annotations)
+precursors <- RenameIdents(
+  precursors,
+  'Cycling Pro-B cell' = 'B cycling pro',
+  'Pre-B cell' = 'B pre',
+  'Pro-B cell' = 'B pro'
+)
+
+## check idents in new GC B cell dataset
+table(precursors$annotations)
+
+
+## merge
+ref <- merge(ref, bcells)
+ref <- merge(ref, stromal)
+ref <- merge(ref, polyc)
+ref <- merge(ref, precursors)
+rm(bcells)
+rm(polyc)
+rm(precursors)
+rm(stromal)
+gc()
+
+## save in cell_type slot
+ref$cell_type <- ref@active.ident
+
+table(ref$cell_type)
+
+#~~~~~~~~~~~~~~~~
+
+## merge
+
+### do RCTD on slideseqv2 or stereoseqv1.2 ###
+
+# Slideseqv2 day 30 arrays found at GSE234253
+## import data
+puck1_loc <- "/...../puck1.rds"
+puck2_loc <- "/...../puck2.rds"
+puck3_loc <- "/...../puck3.rds"
+puck4_loc <- "/...../puck4.rds"
+rctd_save_loc <- "/...../rctd_res.rds"
+
+## import puck
+puck1 <- readRDS(file=puck1_loc)
+puck2 <- readRDS(file=puck2_loc)
+puck3 <- readRDS(file=puck3_loc)
+puck4 <- readRDS(file=puck4_loc)
+
+## get list of pucks
+pucks <- list(puck1,puck2,puck3,puck4)
+
+for(i in 1:4){
+  
+  pucks[[i]] <- UpdateSeuratObject(pucks[[i]])
+  
+  ## get materials for converting puck to SpatialRNA
+  counts <- pucks[[i]]@assays$RNA@counts
+  coords <- as.data.frame(Embeddings(pucks[[i]],reduction="map"))
+  colnames(coords) <- c("x","y")
+  
+  nUMI <- as.numeric(pucks[[i]]@meta.data$nCount_RNA)
+  names(nUMI) <- colnames(counts)
+  
+  
+  ## convert puck to SpatialRNA format for RCTD
+  pucks[[i]] <- new(
+    "SpatialRNA",
+    counts = counts,
+    coords = coords,
+    nUMI = nUMI)
+}
+
+## convert reference to class 'Reference'
+cells <- which(is.na(ref$cell_type) == T)
+ref <- subset(ref, cells = names(cells), invert=T)
+
+cell_types <- as.factor(ref@meta.data$cell_type)
+names(cell_types) <- rownames(ref@meta.data)
+
+reference <- Reference(
+  counts = ref@assays$RNA@counts,
+  cell_types = cell_types
+)
+
+## Create RCTD object
+rctd.obj <- create.RCTD.replicates(
+  pucks, reference,
+  replicate_names = c('puck1','puck2','puck3','puck4'),
+  max_cores = 4,
+  CELL_MIN_INSTANCE = 10, 
+  UMI_min = 25)
+
+## remove
+rm(puck1,puck2,puck3,puck4,pucks,ref,reference)
+gc()
+
+## run.RCTD - this is the step that runs RCTD, takes around 1 day for a typical puck of 30-40k spots.
+rctd.obj <- run.RCTD.replicates(rctd.obj, doublet_mode = 'doublet')
+saveRDS(rctd.obj,file=rctd_save_loc)
+
+
+# For stereoseqv1.2 RCTD
+
+# Mouse STOmics v1.2 spleen - Spleen_stomics1.rds - found at GSE286215
+puck1_loc <- "/...../Spleen_stomics1.rds"
+# Mouse STOmics v1.2 spleen - Spleen_stomics2.rds - found at GSE286215
+# puck2_loc <- "/...../Spleen_stomics2.rds"
+
+rctd_save_loc <- "pathname.rds"
+
+## import puck
+puck1 <- readRDS(file=puck1_loc)
+
+
+## get list of pucks
+pucks <- list(puck1)
+
+for(i in 1){
+  
+  pucks[[i]] <- UpdateSeuratObject(pucks[[i]])
+  
+  ## get materials for converting puck to SpatialRNA
+  counts <- pucks[[i]]@assays$RNA@counts
+  coords <- as.data.frame(Embeddings(pucks[[i]],reduction="spatial"))
+  colnames(coords) <- c("x","y")
+  
+  nUMI <- as.numeric(pucks[[i]]@meta.data$nCount_RNA)
+  names(nUMI) <- colnames(counts)
+  
+  
+  ## convert puck to SpatialRNA format for RCTD
+  pucks[[i]] <- new(
+    "SpatialRNA",
+    counts = counts,
+    coords = coords,
+    nUMI = nUMI)
+}
+
+puck <- pucks[[1]]
+
+## convert reference to class 'Reference'
+cells <- which(is.na(ref$cell_type) == T)
+ref <- subset(ref, cells = names(cells), invert=T)
+
+cell_types <- as.factor(ref@meta.data$cell_type)
+names(cell_types) <- rownames(ref@meta.data)
+
+reference <- Reference(
+  counts = ref@assays$RNA@counts,
+  cell_types = cell_types
+)
+
+## Create RCTD object
+rctd.obj <- create.RCTD(
+  puck, reference,
+  max_cores = 1,
+  CELL_MIN_INSTANCE = 10,
+  UMI_min = 25)
+
+## remove
+rm(puck1,pucks,ref,reference)
+gc()
+
+## run.RCTD - this is the step that runs RCTD, takes around 1 day for a typical puck of 30-40k spots.
+rctd.obj <- run.RCTD(rctd.obj, doublet_mode = 'doublet')
+saveRDS(rctd.obj,file=rctd_save_loc)
+
+                                                                                                                    
+# Visualize cell type decomposition following RCTD
+
+# Slideseq2 data
+
+library(Seurat)
+library(spacexr)
+library(tidyverse)
+library(data.table)
+library(mltools)
+
+normalize <- function(x){ ## ordinary 0 to 1 normalization
+  x <- (x - base::min(x)) / (max(x) - base::min(x))
+  return(x)
+}
+
+## D30 ##
+
+rctd.res <- rctd.res@RCTD.reps
+
+res <- list()
+
+for(i in 1:4){
+  
+  ## get cell type weights
+  map = as.data.frame(as.matrix(rctd.res[[i]]@results$weights))
+  
+  ## format
+  map = as.data.frame(apply(X = map, MARGIN = 2, FUN = normalize))
+  
+  ## get coords
+  coords = as.data.frame(rctd.res[[i]]@spatialRNA@coords)
+  coords = coords[rownames(map),]
+  
+  ## centre coords for rotation
+  coords$x = coords$x - mean(coords$x)
+  coords$y = coords$y - mean(coords$y)
+  
+  ## convert pixels to microns
+  coords[,c('x','y')] = coords[,c('x','y')] * 0.665
+  
+  ## get coord data
+  map$x = coords$x
+  map$y = coords$y
+  map = map %>% relocate(y) %>% relocate(x)
+  
+  ## write
+  res[[i]] <- map
+}
+
+## plot results
+ggplot() +
+  geom_point(
+    data = res[[3]], mapping = aes(x=x,y=y,alpha=`B immature`),
+    color = "red", size = 0.5) +
+  geom_point(
+    data = res[[3]], mapping = aes(x=x,y=y,alpha=`B naive`),
+    color = "green", size = 0.5) +
+  geom_point(
+    data = res[[3]], mapping = aes(x=x,y=y,alpha=`CD4+ Naive`),
+    color = "purple", size = 0.5) +
+  geom_point(
+    data = res[[3]], mapping = aes(x=x,y=y,alpha=`Erythrocyte`),
+    color = "darkblue", size = 0.5) +
+  
+  
+  scale_alpha_continuous(range = c(0,1), breaks=c(0,0.1,1)) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position = "none",
+    plot.background = element_rect(fill = "#000000"),
+    panel.background = element_rect(fill = "#000000"),
+    axis.line = element_blank(),
+    text = element_blank(),
+    plot.title = element_text(size = 30),
+    plot.title.position = 'panel',
+    axis.title = element_blank()) +
+  coord_fixed()
+
+# Visualisations for Stereoseqv1.2
+
+res <- list()
+
+for(i in 1){
+  
+  ## get cell type weights
+  map = as.data.frame(as.matrix(rctd.res@results$weights))
+  
+  ## format
+  #map = as.data.frame(apply(X = map, MARGIN = 2, FUN = normalize))
+  
+  ## get coords
+  coords = as.data.frame(rctd.res@spatialRNA@coords)
+  coords = coords[rownames(map),]
+  
+  ## centre coords for rotation
+  coords$x = coords$x - mean(coords$x)
+  coords$y = coords$y - mean(coords$y)
+  
+  ## convert pixels to microns
+  coords[,c('x','y')] = coords[,c('x','y')]
+  
+  ## get coord data
+  map$x = coords$x
+  map$y = coords$y
+  map = map %>% relocate(y) %>% relocate(x)
+  
+  ## write
+  res <- map
+}
+
+ggplot() +
+  #geom_point(
+  #data = res[[3]], mapping = aes(x=x,y=y,alpha=`Erythrocyte`),
+  #color = "gold", size = 0.5) +
+  
+  geom_point(
+    data = res, mapping = aes(x=x,y=y,alpha=`Erythrocyte`),
+    color = "blue", size = 0.5) +
+  geom_point(
+    data = res, mapping = aes(x=x,y=y,alpha=`B pre`),
+    color = "green", size = 0.5) +
+  geom_point(
+    data = res, mapping = aes(x=x,y=y,alpha=`TRC`),
+    color = "red", size = 0.5) +
+  geom_point(
+    data = res, mapping = aes(x=x,y=y,alpha=`MRC`),
+    color = "red", size = 0.5) +
+  geom_point(
+    data = res, mapping = aes(x=x,y=y,alpha=`TBRC`),
+    color = "red", size = 0.5) +
+  scale_alpha_continuous(range = c(0,1), breaks=c(0,0.1,1)) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position = "none",
+    plot.background = element_rect(fill = "#000000"),
+    panel.background = element_rect(fill = "#000000"),
+    axis.line = element_blank(),
+    text = element_blank(),
+    plot.title = element_text(size = 30),
+    plot.title.position = 'panel',
+    axis.title = element_blank()) +
+  coord_fixed()
+
+# Perform spearman's colocalisation analysis
+
+library(Matrix)
+library(dbscan)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+
+# Compute spatial neighbourhood means once per replicate for *all* variables.
+# This replaces repeated averaging inside every pairwise comparison.
+compute_spatial_means_once <- function(
+    input_data,
+    reps = 1:length(input_data),
+    x = "x", y = "y",
+    radius = 50,
+    nbins = 2000,
+    vars = NULL,
+    seed = NULL,
+    verbose = FALSE
+){
+  if (!is.null(seed)) set.seed(seed)
+  
+  # Infer variables if not provided
+  if (is.null(vars)) {
+    vars <- setdiff(colnames(input_data[[1]]), c(x, y))
+  }
+  
+  means_list <- vector("list", length(reps))
+  meta_list  <- vector("list", length(reps))
+  
+  for (k in seq_along(reps)) {
+    i <- reps[k]
+    df <- input_data[[i]]
+    
+    # Neighbourhoods at given radius (computed once per replicate)
+    pos <- dbscan::frNN(df[, c(x, y)], eps = radius)
+    
+    n <- nrow(df)
+    # Sample bins (spots) where we'll compute neighbourhood means
+    bins <- sample.int(n, size = min(nbins, n))  # safety if n < nbins
+    
+    if (verbose) message(sprintf("Rep %d: computing means on %d bins", i, length(bins)))
+    
+    # For each variable, compute mean over each bin's neighbours
+    # Result: nbins x p matrix (p = number of variables)
+    var_means <- sapply(
+      vars,
+      function(v) vapply(bins, function(idx) {
+        mean(df[[v]][pos$id[[idx]]])
+      }, numeric(1))
+    )
+    
+    # Store as data.frame with variables as columns
+    means_df <- as.data.frame(var_means)
+    colnames(means_df) <- vars
+    
+    # Optional meta info (replicate id, bin index)
+    meta_df <- data.frame(rep = i, bin = bins)
+    
+    means_list[[k]] <- means_df
+    meta_list[[k]]  <- meta_df
+  }
+  
+  pooled_means <- do.call(rbind, means_list)
+  pooled_meta  <- do.call(rbind, meta_list)
+  
+  list(
+    pooled_means = pooled_means,  # rows = all bins across all reps; cols = variables
+    pooled_meta  = pooled_meta,
+    vars         = vars
+  )
+}
+
+# Vectorised neighbourhood averaging via sparse matrices:
+# builds W (row-normalised adjacency), then M = W %*% X for all variables at once.
+compute_spatial_means_sparse <- function(
+    input_data,
+    reps = 1:length(input_data),
+    x = "x", y = "y",
+    radius = 50,
+    nbins = 10000,
+    vars = NULL,
+    seed = NULL,
+    verbose = FALSE
+){
+  if (!is.null(seed)) set.seed(seed)
+  if (is.null(vars)) vars <- setdiff(colnames(input_data[[1]]), c(x, y))
+  
+  means_list <- vector("list", length(reps))
+  meta_list  <- vector("list", length(reps))
+  
+  for (k in seq_along(reps)) {
+    i <- reps[k]
+    df <- input_data[[i]]
+    n  <- nrow(df)
+    
+    pos <- dbscan::frNN(df[, c(x, y)], eps = radius)
+    
+    # Build sparse adjacency: one row per spot, entries for its neighbours
+    rows <- rep(seq_len(n), lengths(pos$id))
+    cols <- unlist(pos$id)
+    vals <- rep(1, length(cols))
+    A    <- sparseMatrix(i = rows, j = cols, x = vals, dims = c(n, n))
+    
+    # Ensure self-neighbourhood (avoid zero row sums)
+    A <- A + Diagonal(n)
+    
+    # Row-normalise to get mean operator W
+    rs <- Matrix::rowSums(A)
+    W  <- Diagonal(n, 1/rs) %*% A
+    
+    # All variables at once
+    X <- as.matrix(df[, vars, drop = FALSE])
+    M <- as.matrix(W %*% X)  # n x p (means at every spot)
+    
+    bins <- sample.int(n, size = min(nbins, n))
+    means_df <- as.data.frame(M[bins, , drop = FALSE])
+    colnames(means_df) <- vars
+    
+    meta_df <- data.frame(rep = i, bin = bins)
+    means_list[[k]] <- means_df
+    meta_list[[k]]  <- meta_df
+    
+    if (verbose) message(sprintf("Rep %d: sparse averaging done (%d bins)", i, length(bins)))
+  }
+  
+  pooled_means <- do.call(rbind, means_list)
+  pooled_meta  <- do.call(rbind, meta_list)
+  
+  list(
+    pooled_means = pooled_means,
+    pooled_meta  = pooled_meta,
+    vars         = vars
+  )
+}
+
+## downstream pairwise correlations
+coloc_analysis_replicates_fast <- function(
+    input_data,
+    reps = 1:length(input_data),
+    x = "x", y = "y",
+    nbins = 2000,
+    radius = 50,
+    verbose = FALSE,
+    use_sparse = TRUE,
+    compute_p = FALSE # set TRUE if you really need p-values per pair
+){
+  # 1) Compute neighbourhood means once (choose sparse or simple method)
+  pre <- if (use_sparse) {
+    compute_spatial_means_sparse(
+      input_data = input_data,
+      reps = reps, x = x, y = y,
+      radius = radius, nbins = nbins,
+      verbose = verbose
+    )
+  } else {
+    compute_spatial_means_once(
+      input_data = input_data,
+      reps = reps, x = x, y = y,
+      radius = radius, nbins = nbins,
+      verbose = verbose
+    )
+  }
+  
+  vars <- pre$vars
+  P    <- pre$pooled_means  # rows: all bins across reps; cols: variables
+  
+  # 2) Full Spearman correlation matrix across variables (computed once)
+  rho_mat <- suppressWarnings(cor(P[, vars, drop = FALSE], method = "spearman", use = "pairwise.complete.obs"))
+  
+  # Optional p-values (loop only over upper triangle)
+  p_mat <- matrix(NA_real_, nrow = length(vars), ncol = length(vars),
+                  dimnames = list(vars, vars))
+  if (compute_p) {
+    for (a in seq_along(vars)) {
+      for (b in a:length(vars)) {
+        if (a == b) { p_mat[a, b] <- NA_real_; next }
+        ct <- suppressWarnings(cor.test(P[, vars[a]], P[, vars[b]], method = "spearman"))
+        p_mat[a, b] <- ct$p.value
+        p_mat[b, a] <- ct$p.value
+      }
+    }
+  }
+  
+  # 3) Long-format for plotting
+  heatmap_data <- expand.grid(celltype1 = vars, celltype2 = vars, stringsAsFactors = FALSE)
+  heatmap_data$ρ     <- as.vector(rho_mat)
+  heatmap_data$pval  <- if (compute_p) as.vector(p_mat) else NA_real_
+  
+  # Same-type comparisons set to NA (as you did)
+  same <- heatmap_data$celltype1 == heatmap_data$celltype2
+  heatmap_data$ρ[same]    <- NA_real_
+  heatmap_data$pval[same] <- NA_real_
+  
+  # 4) Order per hierarchical clustering
+  # Use 1 - rho as a distance; replace NAs with 0 on the diagonal just for clustering
+  rho_for_clust <- rho_mat
+  diag(rho_for_clust) <- 1  # perfect self-correlation
+  rho_for_clust[is.na(rho_for_clust)] <- 0
+  dist_mat <- as.dist(1 - rho_for_clust)
+  hc <- hclust(dist_mat, method = "average")
+  
+  # Reorder factors
+  ord <- hc$order
+  heatmap_data$celltype1 <- factor(heatmap_data$celltype1, levels = vars[ord], ordered = TRUE)
+  heatmap_data$celltype2 <- factor(heatmap_data$celltype2, levels = vars[ord], ordered = TRUE)
+  
+  # 5) Plot
+  cor_plot <- ggplot(heatmap_data, aes(x = celltype1, y = celltype2, fill = ρ)) +
+    geom_tile() +
+    scale_fill_gradient2(
+      low = "royalblue3", mid = "white", high = "red3",
+      midpoint = 0, na.value = "grey80", limits = c(-1, 1)
+    ) +
+    scale_y_discrete(limits = rev(levels(heatmap_data$celltype2))) +
+    xlab(NULL) + ylab(NULL) +
+    theme_minimal() +
+    scale_x_discrete(position = "top") +
+    theme(
+      axis.text.x = element_text(hjust = 0, angle = 45),
+      legend.position = "right",
+      legend.direction = "vertical",
+      axis.line = element_line(colour = "black")
+    ) +
+    coord_fixed()
+  
+  # Output
+  list(
+    plot = cor_plot,
+    heatmap_data = heatmap_data,
+    rho_mat = rho_mat,
+    p_mat = if (compute_p) p_mat else NULL,
+    pooled_means = P,
+    meta = pre$pooled_meta
+  )
+}
+
+
+# For slideseqv1.2 data
+
+## Load each datasets - and need to make into a list
+
+rctd.res <- rctd.res@RCTD.reps
+
+res <- list()
+
+for(i in 1:4){
+  
+  ## get cell type weights
+  map = as.data.frame(as.matrix(rctd.res[[i]]@results$weights))
+  
+  ## format
+  #map = as.data.frame(apply(X = map, MARGIN = 2, FUN = normalize))
+  
+  ## get coords
+  coords = as.data.frame(rctd.res[[i]]@spatialRNA@coords)
+  coords = coords[rownames(map),]
+  
+  ## centre coords for rotation
+  coords$x = coords$x - mean(coords$x)
+  coords$y = coords$y - mean(coords$y)
+  
+  ## convert pixels to microns
+  coords[,c('x','y')] = coords[,c('x','y')]
+  
+  ## get coord data
+  map$x = coords$x
+  map$y = coords$y
+  map = map %>% relocate(y) %>% relocate(x)
+  
+  ## write
+  res[[i]] <- map
+}
+
+results_list <- list(res[[1]],  res[[2]],  res[[3]],  res[[4]])
+
+## Run colocalisation test
+
+outs_50uM <- coloc_analysis_replicates_fast(results_list)
+
+# Outs = 50uM - heatmap
+outs_50uM$plot
+
+# Save correlations
+write.csv(outs_50uM$heatmap_data, file = "/...../path_name.csv")
+
+# For co-localisation for stereoseqv1.2 (combine doc-loclaistaion of replicates 1 and 2)
+
+# Perforem this step for each replicate, named as res1 and res2
+res <- list()
+
+for(i in 1){
+  
+  ## get cell type weights
+  map = as.data.frame(as.matrix(rctd.res@results$weights))
+  
+  ## format
+  #map = as.data.frame(apply(X = map, MARGIN = 2, FUN = normalize))
+  
+  ## get coords
+  coords = as.data.frame(rctd.res@spatialRNA@coords)
+  coords = coords[rownames(map),]
+  
+  ## centre coords for rotation
+  coords$x = coords$x - mean(coords$x)
+  coords$y = coords$y - mean(coords$y)
+  
+  ## convert pixels to microns
+  coords[,c('x','y')] = coords[,c('x','y')]
+  
+  ## get coord data
+  map$x = coords$x
+  map$y = coords$y
+  map = map %>% relocate(y) %>% relocate(x)
+  
+  ## write
+  res1 <- map
+}
+
+results_list <- list(res1, res2)
+
+## Run colocalisation test
+outs_50uM <- coloc_analysis_replicates_fast(results_list)
+
+# Outs = 50uM - heatmap
+outs_50uM$plot
+
+# Save correlations
+write.csv(outs_50uM$heatmap_data, file = "/...../path_name.csv")
+
+
+
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
